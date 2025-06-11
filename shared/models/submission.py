@@ -3,7 +3,7 @@ Submission model for storing IELTS writing submissions and evaluations.
 """
 
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, DECIMAL, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, DECIMAL, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from ..database import Base
 from ..constants import TaskType, SubmissionStatus

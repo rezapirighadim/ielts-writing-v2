@@ -152,6 +152,207 @@ def insert_default_config():
         logger.error(f"Full traceback: {traceback.format_exc()}")
         return False
 
+def add_enhanced_submission_fields():
+    """
+    Add enhanced fields to submissions table for detailed analysis storage.
+    """
+    try:
+        # Check if submissions table exists
+        verification = verify_tables()
+        if not verification['success'] or 'submissions' not in verification['existing_tables']:
+            logger.error("❌ submissions table does not exist. Create tables first.")
+            return False
+
+        with db_manager.get_session() as session:
+            logger.info("Adding enhanced fields to submissions table...")
+
+            # List of enhanced fields to add
+            enhanced_fields = [
+                {
+                    'name': 'character_count',
+                    'sql': "ADD COLUMN character_count INT NULL AFTER word_count"
+                },
+                {
+                    'name': 'validation_data',
+                    'sql': "ADD COLUMN validation_data TEXT NULL AFTER feedback_text"
+                },
+                {
+                    'name': 'analysis_metadata',
+                    'sql': "ADD COLUMN analysis_metadata TEXT NULL AFTER validation_data"
+                },
+                {
+                    'name': 'ai_analysis_data',
+                    'sql': "ADD COLUMN ai_analysis_data TEXT NULL AFTER analysis_metadata"
+                },
+                {
+                    'name': 'readability_score',
+                    'sql': "ADD COLUMN readability_score DECIMAL(5,2) NULL AFTER ai_analysis_data"
+                },
+                {
+                    'name': 'lexical_diversity',
+                    'sql': "ADD COLUMN lexical_diversity DECIMAL(5,3) NULL AFTER readability_score"
+                },
+                {
+                    'name': 'sentence_complexity_score',
+                    'sql': "ADD COLUMN sentence_complexity_score DECIMAL(5,3) NULL AFTER lexical_diversity"
+                },
+                {
+                    'name': 'structure_quality_score',
+                    'sql': "ADD COLUMN structure_quality_score DECIMAL(5,3) NULL AFTER sentence_complexity_score"
+                },
+                {
+                    'name': 'sentence_count',
+                    'sql': "ADD COLUMN sentence_count INT NULL AFTER structure_quality_score"
+                },
+                {
+                    'name': 'paragraph_count',
+                    'sql': "ADD COLUMN paragraph_count INT NULL AFTER sentence_count"
+                },
+                {
+                    'name': 'academic_words_count',
+                    'sql': "ADD COLUMN academic_words_count INT NULL AFTER paragraph_count"
+                },
+                {
+                    'name': 'transition_words_count',
+                    'sql': "ADD COLUMN transition_words_count INT NULL AFTER academic_words_count"
+                },
+                {
+                    'name': 'overall_quality',
+                    'sql': "ADD COLUMN overall_quality ENUM('excellent', 'good', 'fair', 'needs_improvement', 'poor') NULL AFTER transition_words_count"
+                },
+                {
+                    'name': 'recommendations_count',
+                    'sql': "ADD COLUMN recommendations_count INT DEFAULT 0 AFTER overall_quality"
+                },
+                {
+                    'name': 'validation_method',
+                    'sql': "ADD COLUMN validation_method VARCHAR(50) DEFAULT 'enhanced' AFTER recommendations_count"
+                },
+                {
+                    'name': 'confidence_score',
+                    'sql': "ADD COLUMN confidence_score DECIMAL(5,3) NULL AFTER validation_method"
+                },
+                {
+                    'name': 'created_at',
+                    'sql': "ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP AFTER confidence_score"
+                },
+                {
+                    'name': 'updated_at',
+                    'sql': "ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at"
+                }
+            ]
+
+            # Check which fields already exist
+            existing_columns = get_table_columns('submissions')
+            fields_added = 0
+            fields_skipped = 0
+
+            for field in enhanced_fields:
+                field_name = field['name']
+                field_sql = field['sql']
+
+                if field_name in existing_columns:
+                    logger.info(f"   ⏭️ Field '{field_name}' already exists, skipping")
+                    fields_skipped += 1
+                else:
+                    try:
+                        session.execute(text(f"ALTER TABLE submissions {field_sql}"))
+                        logger.info(f"   ✅ Added field: {field_name}")
+                        fields_added += 1
+                    except Exception as e:
+                        logger.warning(f"   ⚠️ Could not add field '{field_name}': {e}")
+
+            # Update status enum to include new values
+            try:
+                session.execute(text("""
+                    ALTER TABLE submissions 
+                    MODIFY COLUMN status ENUM('pending', 'processing', 'completed', 'failed', 'cancelled') 
+                    DEFAULT 'pending'
+                """))
+                logger.info("   ✅ Updated status enum values")
+            except Exception as e:
+                logger.warning(f"   ⚠️ Could not update status enum: {e}")
+
+            session.commit()
+
+            logger.info(f"✅ Enhanced submission fields migration completed")
+            logger.info(f"   📊 Fields added: {fields_added}")
+            logger.info(f"   ⏭️ Fields skipped (already exist): {fields_skipped}")
+
+            return True
+
+    except Exception as e:
+        logger.error(f"❌ Enhanced submission fields migration failed: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return False
+
+def get_table_columns(table_name):
+    """
+    Get list of column names for a given table.
+
+    Args:
+        table_name: Name of the table
+
+    Returns:
+        list: List of column names
+    """
+    try:
+        with db_manager.get_session() as session:
+            result = session.execute(text(f"DESCRIBE {table_name}"))
+            columns = [row[0] for row in result.fetchall()]
+            return columns
+    except Exception as e:
+        logger.error(f"❌ Failed to get columns for table {table_name}: {e}")
+        return []
+
+def verify_enhanced_fields():
+    """
+    Verify that enhanced submission fields were added correctly.
+
+    Returns:
+        dict: Verification results
+    """
+    try:
+        expected_enhanced_fields = [
+            'character_count', 'validation_data', 'analysis_metadata', 'ai_analysis_data',
+            'readability_score', 'lexical_diversity', 'sentence_complexity_score',
+            'structure_quality_score', 'sentence_count', 'paragraph_count',
+            'academic_words_count', 'transition_words_count', 'overall_quality',
+            'recommendations_count', 'validation_method', 'confidence_score',
+            'created_at', 'updated_at'
+        ]
+
+        existing_columns = get_table_columns('submissions')
+
+        verification_results = {}
+        for field in expected_enhanced_fields:
+            verification_results[field] = field in existing_columns
+
+        all_fields_exist = all(verification_results.values())
+        missing_fields = [field for field, exists in verification_results.items() if not exists]
+
+        return {
+            'success': True,
+            'all_fields_exist': all_fields_exist,
+            'fields': verification_results,
+            'missing_fields': missing_fields,
+            'existing_columns': existing_columns,
+            'expected_fields': expected_enhanced_fields
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Enhanced fields verification failed: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'all_fields_exist': False,
+            'fields': {},
+            'missing_fields': [],
+            'existing_columns': [],
+            'expected_fields': []
+        }
+
 def verify_tables():
     """
     Verify that all expected tables exist in the database.
@@ -247,4 +448,38 @@ def run_migration():
         return False
 
     logger.info("🎉 Database migration completed successfully!")
+    return True
+
+def run_complete_migration():
+    """
+    Run complete migration including enhanced fields.
+    """
+    logger.info("🚀 Starting complete database migration with enhanced features...")
+
+    # Step 1: Run base migration
+    logger.info("Running base migration...")
+    if not run_migration():
+        logger.error("❌ Base migration failed")
+        return False
+
+    # Step 2: Add enhanced submission fields
+    logger.info("Adding enhanced submission fields...")
+    if not add_enhanced_submission_fields():
+        logger.error("❌ Enhanced fields migration failed")
+        return False
+
+    # Step 3: Verify enhanced fields
+    logger.info("Verifying enhanced fields...")
+    enhanced_verification = verify_enhanced_fields()
+    if not enhanced_verification['success']:
+        logger.error("❌ Enhanced fields verification failed")
+        return False
+
+    if not enhanced_verification['all_fields_exist']:
+        logger.warning(f"⚠️ Some enhanced fields missing: {enhanced_verification['missing_fields']}")
+        logger.warning("This may be expected if some fields already existed")
+
+    logger.info("🎉 Complete database migration with enhanced features completed successfully!")
+    logger.info("📊 Enhanced submission storage system is ready!")
+
     return True
