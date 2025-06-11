@@ -1,0 +1,31 @@
+# Bot Framework - STABLE VERSION
+python-telegram-bot==20.7
+
+# Database
+PyMySQL==1.1.0
+SQLAlchemy==2.0.23
+
+# AI Integration - STABLE VERSION
+openai==1.3.8
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# HTTP Requests
+requests==2.31.0
+
+# Date/Time Utilities
+pytz==2023.3
+
+# Logging
+structlog==23.2.0
+
+# Persian Text Processing
+python-bidi==0.4.2
+arabic-reshaper==3.0.0
+
+# Validation
+pydantic==2.5.0
+
+# Async Support
+asyncio-mqtt==0.16.1

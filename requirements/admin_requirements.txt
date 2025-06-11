@@ -1,0 +1,45 @@
+# Django Framework - LTS VERSION
+Django==4.2.7
+
+# Database
+PyMySQL==1.1.0
+mysqlclient==2.2.0
+
+# Django Admin Enhancements
+django-admin-interface==0.26.1
+django-colorfield==0.10.1
+
+# API Framework
+djangorestframework==3.14.0
+
+# CORS Headers
+django-cors-headers==4.3.1
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Excel Export
+openpyxl==3.1.2
+
+# Time Zone Support
+pytz==2023.3
+
+# Authentication
+django-allauth==0.57.0
+
+# Pagination
+django-filter==23.5
+
+# Static Files
+whitenoise==6.6.0
+
+# Form Handling
+django-crispy-forms==2.1
+crispy-bootstrap4==2022.1
+
+# Charts and Analytics
+django-chartjs==2.3.0
+
+# Persian Support
+python-bidi==0.4.2
+arabic-reshaper==3.0.0
