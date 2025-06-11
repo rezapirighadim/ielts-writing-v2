@@ -15,6 +15,8 @@ from config.logging_config import setup_logging
 from config.bot_config import bot_config
 from shared.config import validate_environment
 from shared.database import init_database, close_database
+from handlers.basic_handlers import register_basic_handlers
+from handlers.error_handler import register_error_handler
 
 # Set up logging first
 setup_logging()
@@ -64,8 +66,18 @@ class BotApplication:
 
     async def register_handlers(self):
         """Register all bot command and message handlers."""
-        # TODO: Add handlers in next steps
-        logger.info("   Handler registration ready (will be implemented in next steps)")
+        try:
+            # Register basic handlers (/start, /help)
+            register_basic_handlers(self.application)
+
+            # Register error handler
+            register_error_handler(self.application)
+
+            logger.info("   ✅ All handlers registered successfully")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to register handlers: {e}")
+            raise
 
     async def start(self):
         """Start the bot and begin polling for messages."""
@@ -83,6 +95,7 @@ class BotApplication:
             await self.application.updater.start_polling()
 
             logger.info("✅ Bot is now running and listening for messages!")
+            logger.info("📱 Users can now interact with the bot")
             logger.info("Press Ctrl+C to stop the bot")
 
             # Keep the bot running
