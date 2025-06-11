@@ -1,7 +1,7 @@
 # Django Framework - LTS VERSION
 Django==4.2.16
 
-# Database - Use only PyMySQL to avoid mysqlclient compilation issues
+# Database - Updated compatible version
 PyMySQL==1.1.0
 
 # Django Admin Enhancements
@@ -21,7 +21,7 @@ python-dotenv==1.0.1
 openpyxl==3.1.5
 
 # Time Zone Support
-pytz==2024.1
+pytz==2024.2
 
 # Authentication
 django-allauth==65.0.2
@@ -36,9 +36,6 @@ whitenoise==6.7.0
 django-crispy-forms==2.3
 crispy-bootstrap4==2024.1
 
-# Charts and Analytics - Use simpler alternative
-# django-chartjs==2.3.0  # Remove for now
-
 # Persian Support
 python-bidi==0.4.2
 arabic-reshaper==3.0.0
@@ -46,3 +43,6 @@ arabic-reshaper==3.0.0
 # Additional dependencies for Django
 asgiref==3.8.1
 sqlparse==0.5.1
+
+# Type checking
+typing-extensions==4.12.2

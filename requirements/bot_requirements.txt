@@ -1,9 +1,9 @@
 # Bot Framework - STABLE VERSION compatible with Python 3.13
 python-telegram-bot==20.7
 
-# Database - Use only PyMySQL for simplicity
+# Database - Updated compatible versions
 PyMySQL==1.1.0
-SQLAlchemy==2.0.25
+SQLAlchemy==2.0.35
 
 # AI Integration - Updated stable version
 openai==1.51.0
@@ -15,17 +15,14 @@ python-dotenv==1.0.1
 requests==2.31.0
 
 # Date/Time Utilities
-pytz==2024.1
+pytz==2024.2
 
 # Logging
-structlog==24.1.0
+structlog==24.4.0
 
 # Persian Text Processing
 python-bidi==0.4.2
 arabic-reshaper==3.0.0
 
-# Validation - Use compatible version for Python 3.13
-pydantic==2.9.2
-
-# Remove problematic asyncio-mqtt for now
-# We'll add it later if needed
+# Type checking (instead of pydantic for now)
+typing-extensions==4.12.2
