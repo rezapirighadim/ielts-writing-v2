@@ -6,6 +6,8 @@ import re
 import logging
 from typing import Dict, Any
 from dataclasses import dataclass
+from handlers.word_count_validator import enhanced_word_counter, format_word_count_result
+from utils.text_analyzer import text_analyzer, format_analysis_summary
 
 logger = logging.getLogger(__name__)
 
@@ -204,19 +206,27 @@ def check_text_quality(text: str) -> Dict[str, Any]:
         }
 
 
+# Add these imports at the top of bot/handlers/text_validators.py:
+
+from handlers.word_count_validator import enhanced_word_counter, format_word_count_result
+from utils.text_analyzer import text_analyzer, format_analysis_summary
+
+
+# Replace the existing validate_submission_text function with this enhanced version:
+
 def validate_submission_text(text: str, task_type: str) -> Dict[str, Any]:
     """
-    Comprehensive validation of submitted text for IELTS evaluation.
+    Enhanced comprehensive validation of submitted text for IELTS evaluation.
 
-    Python Concept: This function orchestrates multiple validation checks
-    and provides detailed feedback for improving submissions.
+    Python Concept: This function now uses enhanced word counting and
+    text analysis for much more detailed validation.
 
     Args:
         text: Submitted text to validate
         task_type: IELTS task type ('task1' or 'task2')
 
     Returns:
-        dict: Validation result with details
+        dict: Enhanced validation result with detailed analysis
 
     Raises:
         TextValidationError: If validation fails
@@ -240,26 +250,28 @@ def validate_submission_text(text: str, task_type: str) -> Dict[str, Any]:
         if len(text) > 5000:
             raise TextValidationError("متن بسیار طولانی است (حداکثر 5000 کاراکتر)")
 
-        # Count words
-        word_count = count_words(text)
+        # Enhanced word count validation
+        word_count_result = enhanced_word_counter.validate_word_count(
+            text=text,
+            task_type=task_type,
+            min_words=requirements.min_words,
+            max_words=requirements.max_words
+        )
 
-        # Check word count requirements
-        if word_count < requirements.min_words:
-            raise TextValidationError(
-                f"تعداد کلمات کافی نیست. حداقل {requirements.min_words} کلمه مورد نیاز است (شما: {word_count} کلمه)"
-            )
+        if not word_count_result.is_acceptable:
+            # Create detailed error message from word count result
+            error_msg = f"تعداد کلمات نامناسب ({word_count_result.total_words} کلمه)"
+            if word_count_result.suggestions:
+                error_msg += f". {word_count_result.suggestions[0]}"
+            raise TextValidationError(error_msg)
 
-        # Warn if significantly over recommended length
-        if word_count > requirements.max_words + 50:
-            logger.warning(f"Text over recommended length: {word_count} words for {task_type}")
-
-        # Check language
+        # Check language (keeping existing function)
         language_result = check_text_language(text)
         if not language_result['is_english']:
             reason = language_result.get('reason', 'متن به زبان انگلیسی نیست')
             raise TextValidationError(f"لطفاً متن را به زبان انگلیسی بنویسید. {reason}")
 
-        # Check basic quality
+        # Enhanced quality check with text analysis
         quality_result = check_text_quality(text)
         if quality_result['has_issues']:
             issues = quality_result['issues']
@@ -276,17 +288,24 @@ def validate_submission_text(text: str, task_type: str) -> Dict[str, Any]:
             if re.search(pattern, text.lower()):
                 raise TextValidationError("متن ارسالی به نظر تستی یا نمونه است. لطفاً متن واقعی ارسال کنید")
 
-        # Success - return validation result
+        # Perform comprehensive text analysis
+        analysis_result = text_analyzer.perform_complete_analysis(text, task_type)
+
+        # Success - return enhanced validation result
         return {
             'is_valid': True,
-            'word_count': word_count,
+            'word_count': word_count_result.total_words,
             'task_type': task_type,
             'task_name': requirements.task_name,
             'character_count': len(text),
             'language_analysis': language_result,
             'quality_analysis': quality_result,
+            'word_count_analysis': word_count_result,
+            'text_analysis': analysis_result,
             'meets_requirements': True,
-            'validation_message': f"متن معتبر - {word_count} کلمه برای {requirements.task_name}"
+            'validation_message': f"متن معتبر - {word_count_result.total_words} کلمه برای {requirements.task_name}",
+            'detailed_word_count_summary': format_word_count_result(word_count_result, task_type),
+            'detailed_analysis_summary': format_analysis_summary(analysis_result, task_type)
         }
 
     except TextValidationError:
@@ -294,8 +313,39 @@ def validate_submission_text(text: str, task_type: str) -> Dict[str, Any]:
         raise
 
     except Exception as e:
-        logger.error(f"Unexpected error in text validation: {e}")
+        logger.error(f"Unexpected error in enhanced text validation: {e}")
         raise TextValidationError("خطای غیرمنتظره در اعتبارسنجی متن")
+
+
+def get_enhanced_validation_summary(validation_result: Dict[str, Any]) -> str:
+    """
+    Generate enhanced validation summary with word count and text analysis.
+
+    Args:
+        validation_result: Enhanced validation result
+
+    Returns:
+        str: Comprehensive validation summary in Persian
+    """
+    try:
+        if not validation_result.get('is_valid', False):
+            return "متن نامعتبر است"
+
+        summary = "✅ **متن معتبر و آماده برای ارزیابی**\n\n"
+
+        # Add word count summary
+        if 'detailed_word_count_summary' in validation_result:
+            summary += validation_result['detailed_word_count_summary'] + "\n\n"
+
+        # Add text analysis summary
+        if 'detailed_analysis_summary' in validation_result:
+            summary += validation_result['detailed_analysis_summary']
+
+        return summary
+
+    except Exception as e:
+        logger.error(f"Error generating enhanced validation summary: {e}")
+        return "خطا در تولید خلاصه اعتبارسنجی"
 
 
 def get_task_requirements_info(task_type: str) -> Dict[str, Any]:

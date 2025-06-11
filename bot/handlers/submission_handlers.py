@@ -429,9 +429,91 @@ async def handle_submission_callbacks(update: Update, context: ContextTypes.DEFA
         logger.error(f"Error in handle_submission_callbacks: {e}")
 
 
+async def handle_enhanced_submission_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle enhanced callback queries related to submissions.
+    """
+    try:
+        query = update.callback_query
+        await query.answer()
+
+        callback_data = query.data
+
+        if callback_data == "word_count_help":
+            help_text = """📊 **راهنمای شمارش کلمات**
+
+🔢 **نحوه شمارش**:
+• هر کلمه جداگانه شمرده می‌شود
+• مخففات (don't, can't) به عنوان 2 کلمه
+• اعداد (123, 2024) به عنوان 1 کلمه
+• کلمات خط‌دار (well-known) به عنوان 2 کلمه
+
+📏 **حداقل کلمات**:
+• Task 1: 150 کلمه
+• Task 2: 250 کلمه
+
+💡 **نکات**:
+• کمتر از حداقل: نمره پایین
+• بیش از 50 کلمه اضافی: وقت تلف شده
+• دقیقاً در محدوده: بهترین حالت"""
+
+            keyboard = [
+                [InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_submission")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await query.edit_message_text(
+                help_text,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+
+        elif callback_data == "improvement_tips":
+            tips_text = """💡 **نکات بهبود برای آیلتس**
+
+📝 **Task 1**:
+• از واژگان توصیف داده استفاده کنید
+• مقایسه و تضاد ارائه دهید
+• نمای کلی (overview) فراموش نکنید
+
+📝 **Task 2**:
+• نظر شخصی واضح بیان کنید
+• از مثال‌های مناسب استفاده کنید
+• مقدمه و نتیجه‌گیری قوی داشته باشید
+
+🔤 **واژگان**:
+• از کلمات ربط استفاده کنید
+• واژگان آکادمیک به کار ببرید
+• از تکرار واژگان خودداری کنید
+
+✏️ **گرامر**:
+• جملات پیچیده بسازید
+• زمان‌های مختلف استفاده کنید
+• مجهول و معلوم را ترکیب کنید"""
+
+            keyboard = [
+                [InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_submission")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await query.edit_message_text(
+                tips_text,
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+
+        elif callback_data == "back_to_submission":
+            await query.edit_message_text(
+                "✅ بازگشت به صفحه ارسال\n\n📝 برای ارسال متن جدید از /submit استفاده کنید."
+            )
+
+    except Exception as e:
+        logger.error(f"Error in enhanced submission callbacks: {e}")
+
+
 def register_submission_handlers(application) -> None:
     """
-    Register submission-related handlers with the application.
+    Register enhanced submission-related handlers with the application.
 
     Args:
         application: Telegram Application instance
@@ -451,14 +533,20 @@ def register_submission_handlers(application) -> None:
             pattern="^(change_task_type|new_submission|main_menu|get_bonus_requests)$"
         ))
 
+        # New enhanced callbacks
+        application.add_handler(CallbackQueryHandler(
+            handle_enhanced_submission_callbacks,
+            pattern="^(word_count_help|improvement_tips|back_to_submission)$"
+        ))
+
         # Text message handler (for actual submissions)
         application.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND,
             handle_text_submission
         ))
 
-        logger.info("✅ Submission handlers registered successfully")
+        logger.info("✅ Enhanced submission handlers registered successfully")
 
     except Exception as e:
-        logger.error(f"❌ Failed to register submission handlers: {e}")
+        logger.error(f"❌ Failed to register enhanced submission handlers: {e}")
         raise
