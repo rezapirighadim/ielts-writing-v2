@@ -8,13 +8,9 @@ from sqlalchemy.orm import relationship
 from ..database import Base
 from ..constants import SubscriptionType
 
-
 class User(Base):
     """
     User model representing bot users.
-
-    Python Concept: This class inherits from Base (declarative_base)
-    which makes it a SQLAlchemy ORM model. Each attribute becomes a database column.
     """
 
     __tablename__ = 'users'
@@ -46,39 +42,19 @@ class User(Base):
     total_submissions = Column(Integer, default=0, nullable=False)
     bonus_requests = Column(Integer, default=0, nullable=False)
 
-    # Relationships
-    # Python Concept: relationships define how models are connected
-    # back_populates creates a two-way relationship
+    # Relationships - use string references to avoid circular imports
     submissions = relationship("Submission", back_populates="user", cascade="all, delete-orphan")
     channel_memberships = relationship("UserChannelMembership", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
-        """
-        String representation of the User object.
-
-        Python Concept: __repr__ should provide a clear, unambiguous
-        representation of the object, useful for debugging.
-        """
         return f"<User(id={self.id}, telegram_id={self.telegram_id}, username='{self.username}')>"
 
     def __str__(self) -> str:
-        """
-        Human-readable string representation.
-
-        Python Concept: __str__ should provide a nice, human-readable
-        representation of the object.
-        """
         display_name = self.username or self.first_name or f"User_{self.telegram_id}"
         return f"{display_name} ({self.subscription_type.value})"
 
     @property
     def full_name(self) -> str:
-        """
-        Get user's full name.
-
-        Python Concept: @property decorator makes this method accessible
-        like an attribute (user.full_name instead of user.full_name())
-        """
         if self.first_name and self.last_name:
             return f"{self.first_name} {self.last_name}"
         elif self.first_name:
@@ -90,17 +66,14 @@ class User(Base):
 
     @property
     def display_name(self) -> str:
-        """Get the best available display name for the user."""
         return self.username or self.full_name
 
     @property
     def is_premium(self) -> bool:
-        """Check if user has premium subscription."""
         return self.subscription_type == SubscriptionType.PREMIUM
 
     @property
     def monthly_limit(self) -> int:
-        """Get the monthly submission limit for this user."""
         from ..config import config
         if self.is_premium:
             return config.PREMIUM_MONTHLY_LIMIT
@@ -109,22 +82,18 @@ class User(Base):
 
     @property
     def available_submissions(self) -> int:
-        """Calculate available submissions this month including bonuses."""
         base_limit = self.monthly_limit
         total_available = base_limit + self.bonus_requests
         remaining = max(0, total_available - self.monthly_submissions)
         return remaining
 
     def can_submit(self) -> bool:
-        """Check if user can submit a new writing sample."""
         return self.available_submissions > 0
 
     def update_activity(self):
-        """Update last activity timestamp."""
         self.last_activity = datetime.utcnow()
 
     def reset_monthly_usage_if_needed(self):
-        """Reset monthly usage if we're in a new month."""
         from ..utils import should_reset_monthly_usage
 
         if should_reset_monthly_usage(self.last_submission_reset):
@@ -134,12 +103,6 @@ class User(Base):
         return False
 
     def use_submission(self) -> bool:
-        """
-        Use one submission from available count.
-
-        Returns:
-            bool: True if submission was used, False if no submissions available
-        """
         if not self.can_submit():
             return False
 
@@ -149,15 +112,6 @@ class User(Base):
         return True
 
     def add_bonus_requests(self, amount: int) -> int:
-        """
-        Add bonus requests to user account.
-
-        Args:
-            amount: Number of bonus requests to add
-
-        Returns:
-            int: New total bonus requests
-        """
         from ..config import config
         max_bonus = config.MAX_BONUS_REQUESTS
 
@@ -168,12 +122,6 @@ class User(Base):
         return added
 
     def to_dict(self) -> dict:
-        """
-        Convert user object to dictionary.
-
-        Python Concept: Converting ORM objects to dictionaries is useful
-        for JSON serialization and API responses.
-        """
         return {
             'id': self.id,
             'telegram_id': self.telegram_id,
