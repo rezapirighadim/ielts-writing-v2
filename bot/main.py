@@ -16,6 +16,7 @@ from config.bot_config import bot_config
 from shared.config import validate_environment
 from shared.database import init_database, close_database
 from handlers.basic_handlers import register_basic_handlers
+from handlers.channel_handlers import register_channel_handlers
 from handlers.error_handler import register_error_handler
 
 # Set up logging first
@@ -70,6 +71,9 @@ class BotApplication:
             # Register basic handlers (/start, /help)
             register_basic_handlers(self.application)
 
+            # Register channel handlers (/channels, membership verification)
+            register_channel_handlers(self.application)
+
             # Register error handler
             register_error_handler(self.application)
 
@@ -95,7 +99,7 @@ class BotApplication:
             await self.application.updater.start_polling()
 
             logger.info("✅ Bot is now running and listening for messages!")
-            logger.info("📱 Users can now interact with the bot")
+            logger.info("📱 Available commands: /start, /help, /channels")
             logger.info("Press Ctrl+C to stop the bot")
 
             # Keep the bot running
