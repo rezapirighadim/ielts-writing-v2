@@ -18,6 +18,7 @@ from limits.limit_utils import get_user_limit_info_from_update, format_limit_mes
 from database.submission_operations import SubmissionOperations
 from handlers.text_validators import validate_submission_text, TextValidationError
 from messages.persian_messages import PersianMessages
+from database.enhanced_submission_operations import EnhancedSubmissionOperations
 
 logger = logging.getLogger(__name__)
 
@@ -214,10 +215,10 @@ async def show_text_input_instructions(update: Update, context: ContextTypes.DEF
 
 async def handle_text_submission(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    Handle actual text submission from user.
+    Handle actual text submission with enhanced storage.
 
-    Python Concept: This is the core function that processes submitted text,
-    validates it, and prepares it for AI evaluation.
+    Python Concept: This enhanced function stores comprehensive validation
+    and analysis data for better tracking and future AI evaluation.
     """
     try:
         # Check if user is in correct conversation state
@@ -250,22 +251,69 @@ async def handle_text_submission(update: Update, context: ContextTypes.DEFAULT_T
         # Set processing state
         set_user_conversation_step(update, ConversationStep.SUBMISSION_PROCESSING)
 
-        # Store submission in database
+        # Prepare enhanced submission data
         try:
+            # Extract analysis data from validation result
+            word_count_analysis = validation_result.get('word_count_analysis')
+            text_analysis = validation_result.get('text_analysis')
+
+            # Prepare comprehensive submission data
             submission_data = {
                 'user_id': session.user_id,
                 'telegram_id': session.telegram_id,
                 'submission_text': submitted_text,
                 'task_type': task_type,
                 'word_count': validation_result['word_count'],
+                'character_count': validation_result['character_count'],
                 'submission_date': datetime.utcnow(),
-                'status': 'pending'
+                'status': 'pending',
+
+                # Enhanced validation data
+                'word_count_analysis': word_count_analysis.__dict__ if hasattr(word_count_analysis,
+                                                                               '__dict__') else word_count_analysis,
+                'text_analysis': text_analysis.__dict__ if hasattr(text_analysis, '__dict__') else text_analysis,
+                'language_analysis': validation_result.get('language_analysis', {}),
+                'quality_analysis': validation_result.get('quality_analysis', {}),
+                'validation_method': 'enhanced_v1',
+
+                # Extract key metrics for quick access
+                'readability_score': getattr(text_analysis, 'readability_score', 0) if text_analysis else 0,
+                'overall_quality': getattr(text_analysis, 'overall_quality', 'unknown') if text_analysis else 'unknown',
+                'confidence_score': getattr(word_count_analysis, 'confidence_score', 0) if word_count_analysis else 0,
+
+                # Content statistics
+                'sentence_count': 0,
+                'paragraph_count': 0,
+                'lexical_diversity': 0,
+                'academic_words_count': 0,
+                'complexity_score': 0,
+                'structure_score': 0,
+                'recommendations_count': 0
             }
 
-            submission_id = SubmissionOperations.create_submission(submission_data)
+            # Extract detailed metrics if available
+            if text_analysis:
+                if hasattr(text_analysis, 'sentence_analysis') and text_analysis.sentence_analysis:
+                    submission_data['sentence_count'] = text_analysis.sentence_analysis.get('sentence_count', 0)
+                    submission_data['complexity_score'] = text_analysis.sentence_analysis.get('complexity_score', 0)
+
+                if hasattr(text_analysis, 'vocabulary_analysis') and text_analysis.vocabulary_analysis:
+                    submission_data['lexical_diversity'] = text_analysis.vocabulary_analysis.get('lexical_diversity', 0)
+                    submission_data['academic_words_count'] = text_analysis.vocabulary_analysis.get(
+                        'academic_words_count', 0)
+
+                if hasattr(text_analysis, 'structure_analysis') and text_analysis.structure_analysis:
+                    submission_data['paragraph_count'] = text_analysis.structure_analysis.get('paragraph_count', 0)
+                    submission_data['structure_score'] = text_analysis.structure_analysis.get('structure_score', 0)
+
+                if hasattr(text_analysis, 'recommendations') and text_analysis.recommendations:
+                    submission_data['recommendations_count'] = len(text_analysis.recommendations)
+
+            # Store submission in database with enhanced data
+            submission_id = EnhancedSubmissionOperations.create_enhanced_submission(submission_data)
 
             if not submission_id:
-                raise Exception("Failed to create submission record")
+                raise Exception("Failed to create enhanced submission record")
 
             # Store submission ID for later use
             context.user_data['current_submission_id'] = submission_id
@@ -276,20 +324,234 @@ async def handle_text_submission(update: Update, context: ContextTypes.DEFAULT_T
             )
 
             # TODO: In next step, we'll add AI evaluation here
-            # For now, just show confirmation
-            await show_submission_confirmation(update, context, submission_id, validation_result)
+            # For now, just show enhanced confirmation
+            await show_enhanced_submission_confirmation(update, context, submission_id, validation_result)
 
         except Exception as e:
-            logger.error(f"Error storing submission: {e}")
+            logger.error(f"Error storing enhanced submission: {e}")
             await processing_message.edit_text(
                 "❌ خطا در ذخیره متن. لطفاً دوباره تلاش کنید."
             )
             reset_user_conversation(update)
 
     except Exception as e:
-        logger.error(f"Error in handle_text_submission: {e}")
+        logger.error(f"Error in enhanced text submission: {e}")
         await update.message.reply_text("خطا در پردازش متن ارسالی")
         reset_user_conversation(update)
+
+
+async def show_enhanced_submission_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE,
+                                                submission_id: int, validation_result: dict) -> None:
+    """
+    Show enhanced submission confirmation with detailed analysis preview.
+    """
+    try:
+        task_type = context.user_data.get('selected_task_type', 'task2')
+        task_names = {'task1': 'Task 1', 'task2': 'Task 2'}
+        task_name = task_names.get(task_type, 'Task 2')
+
+        # Get enhanced validation summary
+        detailed_summary = get_enhanced_validation_summary(validation_result)
+
+        # Extract key metrics for preview
+        text_analysis = validation_result.get('text_analysis')
+        word_count_analysis = validation_result.get('word_count_analysis')
+
+        readability = getattr(text_analysis, 'readability_score', 0) if text_analysis else 0
+        overall_quality = getattr(text_analysis, 'overall_quality', 'unknown') if text_analysis else 'unknown'
+        confidence = getattr(word_count_analysis, 'confidence_score', 0) if word_count_analysis else 0
+
+        quality_translations = {
+            'excellent': 'عالی',
+            'good': 'خوب',
+            'fair': 'متوسط',
+            'needs_improvement': 'نیاز به بهبود',
+            'unknown': 'نامشخص'
+        }
+
+        confirmation_text = f"""✅ **متن با موفقیت ارسال شد!**
+
+📋 **جزئیات ارسال**:
+• شناسه: {submission_id}
+• نوع تسک: {task_name}
+• تعداد کلمات: {validation_result['word_count']}
+• زمان ارسال: {datetime.now().strftime('%H:%M')}
+
+🔍 **تحلیل اولیه**:
+• کیفیت کلی: {quality_translations.get(overall_quality, overall_quality)}
+• خوانایی: {readability:.0f}/100
+• اعتماد: {confidence:.1%}
+
+{detailed_summary}
+
+🤖 **مرحله بعدی**:
+سیستم ارزیابی AI متن شما را بر اساس معیارهای آیلتس بررسی خواهد کرد.
+
+⏱️ **زمان تقریبی**: 30-60 ثانیه
+
+📊 **معیارهای ارزیابی**:
+• Task Achievement
+• Coherence & Cohesion  
+• Lexical Resource
+• Grammatical Range & Accuracy"""
+
+        keyboard = [
+            [InlineKeyboardButton("📊 مشاهده آمار کامل", callback_data="view_detailed_stats")],
+            [InlineKeyboardButton("📝 ارسال متن جدید", callback_data="new_submission")],
+            [InlineKeyboardButton("💡 نکات بهبود", callback_data="improvement_tips")],
+            [InlineKeyboardButton("🏠 منوی اصلی", callback_data="main_menu")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_text(
+            confirmation_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+        # Reset conversation state
+        reset_user_conversation(update)
+
+        # Log successful enhanced submission
+        logger.info(f"Enhanced submission {submission_id} confirmed for user {update.effective_user.id}")
+
+    except Exception as e:
+        logger.error(f"Error showing enhanced submission confirmation: {e}")
+
+
+# Add new callback handler for detailed stats:
+
+async def handle_detailed_stats_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle detailed statistics callback."""
+    try:
+        query = update.callback_query
+        await query.answer()
+
+        session = get_user_session_from_update(update)
+        if not session:
+            await query.edit_message_text("جلسه منقضی شده.")
+            return
+
+        # Get user's recent submissions with analysis
+        submissions = EnhancedSubmissionOperations.get_user_submissions_with_stats(
+            user_id=session.user_id,
+            limit=5,
+            include_analysis=True
+        )
+
+        if not submissions:
+            await query.edit_message_text(
+                "📊 **آمار تفصیلی**\n\nهنوز ارسالی ثبت نشده است.\n\n📝 /submit - ارسال اولین متن"
+            )
+            return
+
+        # Get analytics
+        analytics = EnhancedSubmissionOperations.get_submission_analytics(
+            user_id=session.user_id,
+            days_back=30
+        )
+
+        stats_text = f"""📊 **آمار تفصیلی شما**
+
+📈 **خلاصه 30 روز گذشته**:
+• کل ارسال‌ها: {analytics.get('total_submissions', 0)}
+• تکمیل شده: {analytics.get('completed_submissions', 0)}
+
+📝 **آخرین ارسال‌ها**:\n"""
+
+        for i, sub in enumerate(submissions[:3], 1):
+            quality = sub.get('overall_quality', 'نامشخص')
+            score = sub.get('overall_score', 0)
+            date = sub.get('submission_date')
+            if isinstance(date, datetime):
+                date_str = date.strftime('%m/%d')
+            else:
+                date_str = 'نامشخص'
+
+            stats_text += f"{i}. {sub.get('task_type', 'task2').upper()} - نمره: {score or 'N/A'} - {date_str}\n"
+
+        # Add average scores if available
+        avg_scores = analytics.get('average_scores', {})
+        if avg_scores:
+            stats_text += f"\n🎯 **میانگین نمرات**:\n"
+            for score_type, score_data in avg_scores.items():
+                if score_data and score_type != 'overall':
+                    avg = score_data.get('average', 0)
+                    stats_text += f"• {score_type}: {avg}\n"
+
+        # Word count stats
+        word_stats = analytics.get('word_count_stats', {})
+        if word_stats:
+            stats_text += f"\n📏 **آمار کلمات**:\n"
+            stats_text += f"• میانگین: {word_stats.get('average', 0)} کلمه\n"
+            stats_text += f"• حداقل-حداکثر: {word_stats.get('min', 0)}-{word_stats.get('max', 0)}\n"
+
+        keyboard = [
+            [InlineKeyboardButton("📝 ارسال جدید", callback_data="new_submission")],
+            [InlineKeyboardButton("🔙 بازگشت", callback_data="main_menu")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await query.edit_message_text(
+            stats_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+    except Exception as e:
+        logger.error(f"Error handling detailed stats callback: {e}")
+        await update.callback_query.edit_message_text("خطا در نمایش آمار تفصیلی")
+
+
+# Update the register_submission_handlers function:
+
+def register_submission_handlers(application) -> None:
+    """
+    Register enhanced submission-related handlers with the application.
+
+    Args:
+        application: Telegram Application instance
+    """
+    try:
+        # Command handlers
+        application.add_handler(CommandHandler("submit", submit_command))
+
+        # Callback query handlers
+        application.add_handler(CallbackQueryHandler(
+            handle_task_selection,
+            pattern="^(select_task:|cancel_submission).*"
+        ))
+
+        application.add_handler(CallbackQueryHandler(
+            handle_submission_callbacks,
+            pattern="^(change_task_type|new_submission|main_menu|get_bonus_requests)$"
+        ))
+
+        # Enhanced callbacks
+        application.add_handler(CallbackQueryHandler(
+            handle_enhanced_submission_callbacks,
+            pattern="^(word_count_help|improvement_tips|back_to_submission)$"
+        ))
+
+        # New detailed stats callback
+        application.add_handler(CallbackQueryHandler(
+            handle_detailed_stats_callback,
+            pattern="^view_detailed_stats$"
+        ))
+
+        # Text message handler (for actual submissions)
+        application.add_handler(MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            handle_text_submission
+        ))
+
+        logger.info("✅ Enhanced submission handlers with storage registered successfully")
+
+    except Exception as e:
+        logger.error(f"❌ Failed to register enhanced submission handlers: {e}")
+        raise
 
 
 async def show_validation_error(update: Update, context: ContextTypes.DEFAULT_TYPE,
