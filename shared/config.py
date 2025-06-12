@@ -5,11 +5,15 @@ settings for both the bot and admin panel.
 """
 
 import os
+import logging
 from typing import Optional, List
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 
 class Config:
@@ -30,7 +34,14 @@ class Config:
 
     # Bot Configuration
     TELEGRAM_BOT_TOKEN: str = os.getenv('TELEGRAM_BOT_TOKEN', '')
+    BOT_TOKEN: str = TELEGRAM_BOT_TOKEN  # Alias for compatibility
+
+    # OpenAI Configuration
     OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY', '')
+    OPENAI_MODEL: str = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
+    OPENAI_MAX_RETRIES: int = int(os.getenv('OPENAI_MAX_RETRIES', '3'))
+    OPENAI_RETRY_DELAY: float = float(os.getenv('OPENAI_RETRY_DELAY', '1.0'))
+    OPENAI_TIMEOUT: int = int(os.getenv('OPENAI_TIMEOUT', '60'))
 
     # Admin Panel Configuration
     DJANGO_SECRET_KEY: str = os.getenv('DJANGO_SECRET_KEY', 'change-me-in-production')
@@ -87,10 +98,10 @@ class Config:
                 missing_settings.append(setting_name)
 
         if missing_settings:
-            print(f"❌ Missing required environment variables: {', '.join(missing_settings)}")
+            logger.error(f"❌ Missing required environment variables: {', '.join(missing_settings)}")
             return False
 
-        print("✅ All required environment variables are set")
+        logger.info("✅ All required environment variables are set")
         return True
 
     def __str__(self) -> str:
@@ -98,7 +109,7 @@ class Config:
         String representation for debugging (without sensitive data).
 
         Python Concept: __str__ method defines how the object appears
-        when converted to string or printed.
+        when converted to string or converted to string.
         """
         return f"Config(DB_HOST={self.DB_HOST}, DB_NAME={self.DB_NAME}, LOG_LEVEL={self.LOG_LEVEL})"
 
